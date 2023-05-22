@@ -13,14 +13,14 @@ export class UserAuthGuard implements CanActivate {
       const request=context.switchToHttp().getRequest();
 
       const userCredentials: LoginUserDto=request.body;
-      const isValidated=await this.usersService.validatingUserCredentials(userCredentials);
-      if(!isValidated){
+      const user=await this.usersService.validatingUserCredentials(userCredentials);
+      if(!user){
         throw new UnauthorizedException('Invalid Credentials'); 
       }
-      if(!this.usersService.currentUser.isactive){
+      if(!user.isactive){
         throw new UnauthorizedException('Your Account Is Blocked')
       }
-      return isValidated;
+      return true;
     }
     catch(error){
       throw error;

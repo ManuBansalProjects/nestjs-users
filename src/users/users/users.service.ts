@@ -13,7 +13,6 @@ import { User } from 'src/interface/user/user.interface';
 
 @Injectable()
 export class UsersService {
-    currentUser: CurrentuserDto;
 
     constructor(@InjectRepository(Users) private readonly userRepository: Repository<Users>, private jwtService: JwtService){}
 
@@ -38,14 +37,13 @@ export class UsersService {
         }
     }
 
-    async validatingUserCredentials(loginUserDto: LoginUserDto): Promise<boolean>{
+    async validatingUserCredentials(loginUserDto: LoginUserDto): Promise<Users>{
         try{
             const user=await this.userRepository.findOne({where:{email: loginUserDto.email}});
             if( !( user && bcrypt.compareSync(loginUserDto.password, user.password) ) ){
-                return false;
+                return undefined;
             }
-            this.currentUser=user;
-            return true;
+            return user;
         }
         catch(error){
             throw error;
@@ -62,10 +60,13 @@ export class UsersService {
         }
     }
 
-    async saveJwtToDatabase(jwtToken: string){
+    async generateAndSaveJwtToDatabase(email: string):Promise<string>{
         try{
-            this.currentUser.jwt=jwtToken;
-            await this.userRepository.save(this.currentUser);
+            let user=await this.userRepository.findOne({where:{email: email }});
+            const jwtToken=this.jwtService.sign({email: user.email, password: user.password, role: user.role});
+            user.jwt=jwtToken;
+            await this.userRepository.save(user);
+            return jwtToken;
         }
         catch(error){
             throw error;
@@ -78,40 +79,28 @@ export class UsersService {
             user.password=password;
             const result=await this.userRepository.save(user);
             return result;
-            // this.changeRole('bansal.manu444@gmail.com', 1); // to do ->implement
         }
         catch(error){
             throw error;
         }
     }
 
-    async updatePassword(password: string): Promise<Users>{
-        try{
-            this.currentUser.password=password;
-            const result=await this.userRepository.save(this.currentUser);
-            return result;
-        }
-        catch(error){
-            throw error;
-        }
-    }
-
-    async changeRole(email: string, role: number){
-        try{
-            let user=await this.userRepository.findOne({ where: {email: email}});
-            if(user.role !=1){
-                user.role=role;
-                const result=await this.userRepository.save(user);
-                console.log(result);
-            }
-            else{
-                throw new BadRequestException();
-            }
-        }
-        catch(error){
-            throw error;
-        }
-    }
+    // async changeRole(email: string, role: number){
+    //     try{
+    //         let user=await this.userRepository.findOne({ where: {email: email}});
+    //         if(user.role !=1){
+    //             user.role=role;
+    //             const result=await this.userRepository.save(user);
+    //             console.log(result);
+    //         }
+    //         else{
+    //             throw new BadRequestException();
+    //         }
+    //     }
+    //     catch(error){
+    //         throw error;
+    //     }
+    // }
     
     async getAllUsers(): Promise<Users[]>{
         try{
@@ -137,10 +126,11 @@ export class UsersService {
         }
     }
 
-    async updateUser(updatedUser: UpdatedUserDto): Promise<Users>{
+    async updateUser(updatedUser: UpdatedUserDto, email:string): Promise<Users>{
         try{
-            this.currentUser.name=updatedUser.name;
-            const result=await this.userRepository.save(this.currentUser);
+            let user=await this.userRepository.findOne({ where: {email: email}});
+            user.name=updatedUser.name;
+            const result=await this.userRepository.save(user);
             return result;
         }
         catch(error){
@@ -148,11 +138,11 @@ export class UsersService {
         }
     }
 
-    async logout(){
+    async logout(email:string){
         try{
-            this.currentUser.jwt=null;
-            const result=await this.userRepository.save(this.currentUser);
-            this.currentUser=undefined;
+            let user=await this.userRepository.findOne({ where: {email: email}});
+            user.jwt=null;
+            const result=await this.userRepository.save(user);
         }
         catch(error){
             throw error;

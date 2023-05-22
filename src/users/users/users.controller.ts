@@ -7,7 +7,6 @@ import { ParseIntPipe, ValidationPipe } from '@nestjs/common/pipes';
 import { Delete, Param, Req, UseGuards } from '@nestjs/common/decorators';
 import * as bcrypt from 'bcrypt';
 import {JwtService} from '@nestjs/jwt';
-
 import { Users } from 'src/entities/user.entities';
 import { User } from 'src/interface/user/user.interface';
 import { CheckAuthenticationGuard } from 'src/guards/check-authentication/check-authentication.guard';
@@ -19,10 +18,10 @@ export class UsersController {
     constructor(private readonly usersService: UsersService, private readonly emailService: EmailService, private jwtService: JwtService){}
 
 
-    @Get('/get-role')
-    getRole(@Headers('authorization') jwt: string):number{
-        return this.usersService.currentUser.role;
-    }
+    // @Get('/get-role')
+    // getRole(@Headers('authorization') jwt: string){
+        
+    // }
 
     @Get('/all-users')
     @UseGuards(AdminAuthenticationGuard)
@@ -48,16 +47,18 @@ export class UsersController {
         }
     }
 
-    @Get('/getting-loggedIn-user')
-    gettingLoggedInUser(){
-        const user= this.usersService.currentUser;
-        return {message: 'success', user};
-    }
+    // @Get('/getting-loggedIn-user')
+    // gettingLoggedInUser(){
+    //     const user= this.usersService.currentUser;
+    //     return {message: 'success', user};
+    // }
 
     @Put('/update-user')
-    async updateUser(@Body() updatedUser: UpdatedUserDto){
+    async updateUser(@Body() updatedUser: UpdatedUserDto, @Req() req: Request){
         try{
-            const result=await this.usersService.updateUser(updatedUser);
+            const jwtToken=req.cookies.access_token;
+            const res:any=this.jwtService.decode(jwtToken);
+            const result=await this.usersService.updateUser(updatedUser, res.email);
             return {message: 'update successfully', result};
         }
         catch(error){
@@ -65,13 +66,15 @@ export class UsersController {
         }
     }
 
-    @Post('/update-password')
+    @Put('/update-password')
     @UsePipes(ValidationPipe)
     async changePassword(@Body() changePasswordDto: ChangePasswordDto, @Req() req: Request){
         try{
+            const jwtToken=req.cookies.access_token;
+            const res:any=this.jwtService.decode(jwtToken);
             const saltOrRounds=await bcrypt.genSalt();
-            const res=await this.usersService.updatePassword(await bcrypt.hash(changePasswordDto.password, saltOrRounds));
-            return {message: 'password updated', res};
+            const result=await this.usersService.resetPassword(res.email, await bcrypt.hash(changePasswordDto.password, saltOrRounds));
+            return {message: 'password updated', result};
         }
         catch(error){
             throw error;
@@ -79,9 +82,11 @@ export class UsersController {
     }
 
     @Get('/logout')
-    async logout(@Res() res: Response){
+    async logout(@Req() req:Request, @Res() res: Response){
         try{
-            await this.usersService.logout();
+            const jwtToken=req.cookies.access_token;
+            const result:any=this.jwtService.decode(jwtToken);
+            await this.usersService.logout(result.email);
             res.clearCookie('access_token');
             res.json({message: 'logged out successfully'});
         }

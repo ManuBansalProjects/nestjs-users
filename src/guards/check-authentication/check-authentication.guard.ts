@@ -9,10 +9,10 @@ export class CheckAuthenticationGuard implements CanActivate {
 
   canActivate(context: ExecutionContext){
     try{
-      if(!this.usersService.currentUser){
-        throw '';
-      }
       const request=context.switchToHttp().getRequest();
+      if(!request.cookies.access_token){
+        throw new UnauthorizedException();
+      }
       const jwtToken=request.cookies.access_token
       const result=this.jwtService.verify(jwtToken, {secret: 'SecretKey'});
       return true;

@@ -1,8 +1,8 @@
 import { Controller, Post , UseGuards, UsePipes, Body, Headers, Res, Req} from "@nestjs/common";
-import { Response } from "express";
+import { Response, Request } from "express";
 import { UsersService } from "./users.service";
 import { ParseIntPipe, ValidationPipe } from '@nestjs/common/pipes';
-import { ChangePasswordDto, CreateUserDto, EmailDetailsDto, ForgotpasswordDto } from "src/dto/user.dto";
+import { ChangePasswordDto, CreateUserDto, EmailDetailsDto, ForgotpasswordDto, LoginUserDto } from "src/dto/user.dto";
 import { Users } from "src/entities/user.entities";
 import * as bcrypt from 'bcrypt';
 import { UserAuthGuard } from "src/guards/user-auth/user-auth.guard";
@@ -35,15 +35,9 @@ export class AuthController{
 
     @Post('/login')
     @UseGuards(UserAuthGuard)
-    async login(@Res() res: Response){
+    async login(@Body() user: LoginUserDto, @Res() res: Response){
         try{
-            const tokenDetails={
-                email: this.usersService.currentUser.email, 
-                password: this.usersService.currentUser.password, 
-                role: this.usersService.currentUser.role
-            }
-            const jwtToken=await this.usersService.generateToken(tokenDetails);
-            await this.usersService.saveJwtToDatabase(jwtToken);
+            const jwtToken=await this.usersService.generateAndSaveJwtToDatabase(user.email);
             res.cookie('access_token', jwtToken, {httpOnly: true});
             res.json({message:'login successfull'});
         }
@@ -59,7 +53,7 @@ export class AuthController{
             const tokenDetails={
                 email: forgotPasswordDto.email
             }
-            const jwtToken=this.jwtService.sign(tokenDetails);
+            const jwtToken=await this.usersService.generateToken(tokenDetails);
             let emailDetails: EmailDetailsDto={email:'', text:''};
             emailDetails.email=forgotPasswordDto.email;
             emailDetails.text=`Please click on the link below for generate new password \n http://localhost:4200/users/changepassword/${jwtToken}`;
@@ -83,7 +77,7 @@ export class AuthController{
     async changePassword(@Body() changePasswordDto: ChangePasswordDto, @Headers('authorization') jwt: string){
         try{
             const jwtToken=jwt.split(' ')[1];
-            const result=await this.jwtService.verifyAsync(jwtToken, {secret: 'SecretKey'});
+            const result:any=this.jwtService.decode(jwtToken);
             const saltOrRounds=await bcrypt.genSalt();
             const res=await this.usersService.resetPassword(result.email, await bcrypt.hash(changePasswordDto.password, saltOrRounds));
             return {message: 'password updated', res};
