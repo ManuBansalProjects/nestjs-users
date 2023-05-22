@@ -1,0 +1,77 @@
+
+------------------------------------------------------//app service-----------------------------------------------------
+
+constructor(@InjectRepository(Users) private userRepository: Repository<Users>){}
+
+  getHello(): string {
+    return 'Hello World!';
+  }
+
+  createUser(createUserDto: CreateUserDto){
+    const newUser=this.userRepository.create(createUserDto);
+    return this.userRepository.save(newUser);
+  }
+
+  getUser(id: number){
+      // return this.userRepository.findOneBy({id: id});
+      // return this.userRepository.findOne({where: {id}});
+      // return this.userRepository.findBy( {id: In([1,2])} );
+      // return this.userRepository.findBy( {id: id} );
+  }
+
+  getUsers(){
+      // return this.userRepository.find({select: {id: true, name: true, email: true}});
+      // return this.userRepository.find({where: {role: 0}});
+      // return this.userRepository.find({where: {role: 0}, select: {id: true, name: true, email: false}});
+      return this.userRepository.find();
+  }
+
+  update(id:number, updatedUser: CreateUserDto  ){
+    let user: Users= new Users();
+    user.name=updatedUser.name;
+    user.email=updatedUser.email;
+    user.password=updatedUser.password;
+    user.id=id;
+    return this.userRepository.save(user);
+  }
+
+  deleteUser(id:any){
+    return this.userRepository.delete(id);
+  }
+
+
+-----------------------------------------------------app controller--------------------------------------------------------
+
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+
+  @Post('/add-user')
+  @UsePipes(ValidationPipe)
+  createUser(@Body() createUserDto: CreateUserDto){
+      return this.appService.createUser(createUserDto);
+  }
+
+  @Get('/all-users')
+  getUsers(){
+      return this.appService.getUsers();
+  }
+
+  @Get('/user/:id')
+  getUser(@Param('id', ParseIntPipe) id: number){
+      return this.appService.getUser(id);                        
+  }
+
+  @Patch('/user/:id')
+  @UsePipes(ValidationPipe)
+  update(@Param('id', ParseIntPipe) id: number, @Body() updatedUser: CreateUserDto){
+      return this.appService.update(id, updatedUser);
+  }
+
+  @Delete('/user/:id')
+  deleteUser(@Param('id', ParseIntPipe) id: number){
+    return this.appService.deleteUser(id);
+  }
